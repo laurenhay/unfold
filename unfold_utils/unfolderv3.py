@@ -176,7 +176,7 @@ class Unfolder:
             self.miss_frac = self.miss_values/ ( self.M_np.sum(axis = 1))
         
         if self.do_norm:
-            for i in range(4):
+            for i in range(self.nptbinsGen):
                 sum_i = self.h_np[i*self.nmbinsDet:(i+1)*self.nmbinsDet].sum()
                 self.h_np[i*self.nmbinsDet:(i+1)*self.nmbinsDet] = self.h_np[i*self.nmbinsDet:(i+1)*self.nmbinsDet]/sum_i
                 self.h_np_error[i*self.nmbinsDet:(i+1)*self.nmbinsDet] = self.h_np_error[i*self.nmbinsDet:(i+1)*self.nmbinsDet]/sum_i
@@ -333,7 +333,7 @@ class Unfolder:
         axisSteering = "*[UOB]"
         nScan = 50
         tauMin = 1e-8
-        tauMax = 0.01
+        tauMax = 0.001
         logTauX = ROOT.MakeNullPointer(ROOT.TSpline)
         logTauY = ROOT.MakeNullPointer(ROOT.TSpline)
         lCurve = ROOT.MakeNullPointer(ROOT.TGraph)
@@ -451,11 +451,14 @@ class Unfolder:
         for i in range(0, self.nptbinsGen):
             if self.normalized_syst:
                 self.output_pt_binned.append(self.o_np[i*self.nmbinsGen:(i+1)*self.nmbinsGen]/self.o_np[i*self.nmbinsGen:(i+1)*self.nmbinsGen].sum())
+                self.stat_pt_binned.append(self.stat[i*self.nmbinsGen:(i+1)*self.nmbinsGen]/self.stat[i*self.nmbinsGen:(i+1)*self.nmbinsGen].sum())
+                self.stat_mat_pt_binned.append(self.stat_mat[i*self.nmbinsGen:(i+1)*self.nmbinsGen]/self.stat_mat[i*self.nmbinsGen:(i+1)*self.nmbinsGen].sum())
             else:
                 self.output_pt_binned.append(self.o_np[i*self.nmbinsGen:(i+1)*self.nmbinsGen])
+                self.stat_pt_binned.append(self.stat[i*self.nmbinsGen:(i+1)*self.nmbinsGen])
+                self.stat_mat_pt_binned.append(self.stat_mat[i*self.nmbinsGen:(i+1)*self.nmbinsGen])
             
-            self.stat_pt_binned.append(self.stat[i*self.nmbinsGen:(i+1)*self.nmbinsGen])
-            self.stat_mat_pt_binned.append(self.stat_mat[i*self.nmbinsGen:(i+1)*self.nmbinsGen])
+            # self.stat_mat_pt_binned.append(self.stat_mat[i*self.nmbinsGen:(i+1)*self.nmbinsGen])
             #self.total_error_pt_binned.append(self.total_error[i*self.nmbinsGen:(i+1)*self.nmbinsGen] )
             #self.total_sys_pt_binned.append(self.total_sys[i*self.nmbinsGen:(i+1)*self.nmbinsGen] )
         if self.do_syst:
@@ -500,29 +503,35 @@ class Unfolder:
 
         self.total_sys = np.sqrt(total_sys)
         self.total_sys_jes = np.sqrt(total_sys_jes)
+        for i in range(0, self.nptbinsGen):
+            # self.total_error_pt_binned.append(self.total_error[i*self.nmbinsGen:(i+1)*self.nmbinsGen] )
+            self.total_sys_pt_binned.append(self.total_sys[i*self.nmbinsGen:(i+1)*self.nmbinsGen] )
+        
     def plot_output_sys(self):
         """Plot the unfolded output with systematic variations."""
-        title_list = [r"$p_T$ 200-290 GeV", r"$p_T$ 290-400 GeV", r"$p_T$ 400-480 GeV", "a", "b", "c"]
-        npt = len(title_list)
-        print(self.o_sys_dic_pt_binned.keys())
+        npt = self.nptbinsGen
+        # print(self.o_sys_dic_pt_binned.keys())
 
         plt.figure(figsize=(19, 15))
         for i in range(npt):
+            print("Bin ", i)
             plt.subplot(3, 2, i + 1)
-                    
             plt.stairs(self.output_pt_binned[i] / self.mgen_width ,
                    self.mgen_edge, label="Nominal", color='k')
-
+            # print("Nominal value: ", self.output_pt_binned[i][3])
             if self.do_syst:
                 for sys_name in self.o_sys_dic_pt_binned.keys():
+                    # print("pt bin sys vals for sys ", sys_name, " ",  self.o_sys_dic_pt_binned[sys_name][i][3] )  
+                    # print("Delta sys , ", self.o_sys_dic_pt_binned[sys_name][i][3]-self.output_pt_binned[i][3])
+                    # print("Percent , ", (self.o_sys_dic_pt_binned[sys_name][i][3]-self.output_pt_binned[i][3])/self.output_pt_binned[i][3])
                     plt.stairs(self.o_sys_dic_pt_binned[sys_name][i] / self.mgen_width,
                         self.mgen_edge, label=sys_name, linestyle='--')
 
             plt.xlabel("GEN Mass (GeV)")
-            #plt.legend(title=title_list[i])
+            # plt.legend(title=r"$p_T$ {}-{} GeV".format(self.ptgen_edge[i], self.ptgen_edge[i+1]))
             plt.xlim(0, 250)
         plt.show()
-        for i in range(1):
+        for i in range(npt):
             #plt.subplot(2, 2, i + 1)
                     
             
@@ -532,7 +541,7 @@ class Unfolder:
                    self.mgen_edge, label="Nominal", color='k')
                 
                 for sys_name in self.o_sys_dic_pt_binned.keys():
-                    if sys_name == "jerUp":
+                    if sys_name == "herwigUp":
                         plt.stairs(self.o_sys_dic_pt_binned[sys_name][i] / self.mgen_width,
                             self.mgen_edge, label=sys_name, linestyle='--')
                         plt.xlim(0, 250)
@@ -540,14 +549,14 @@ class Unfolder:
                         
 
                         plt.xlabel("GEN Mass (GeV)")
-                        #plt.legend(title=title_list[i])
+                        # plt.legend(title=r"$p_T$ {}-{} GeV".format(self.ptgen_edge[i], self.ptgen_edge[i+1]))
                         plt.xlim(0, 250)
                         plt.show()
                         
         
         
     
-    def plot_response_matrix(self, probability_matrix  = True):
+    def plot_response_matrix(self, probability_matrix  = True, year = None):
         """Plot the response matrix with overlayed bin boundaries."""
         # Prepare lines for visual separation of pT bins
         self.create_root_objects()
@@ -606,12 +615,18 @@ class Unfolder:
         ax.set_yticklabels(x_labels[:-1])
         ax.tick_params(axis='both', which='both', length=0)
         if self.groomed:
-            hep.cms.label("Preliminary", rlabel = rf"Groomed, Cond. = {condition_number:.2f} ", fontsize = 20)
+            hep.cms.label("Preliminary", rlabel = rf"Groomed, Cond. = {condition_number:.3e} ", fontsize = 16)
         else:
-            hep.cms.label("Preliminary", rlabel = rf"Ungroomed, Cond. = {condition_number:.2f} ", fontsize = 20)
+            hep.cms.label("Preliminary", rlabel = rf"Ungroomed, Cond. = {condition_number:.3e} ", fontsize = 16)
         ax.set_xlabel(r"GEN p$_{T}$ (GeV)")
         ax.set_ylabel(r"RECO $p_T$ (GeV)")
-
+        if year!=None:
+            ax.text(0.45, 1., year,
+                            fontsize=16,
+                            horizontalalignment='left',
+                            verticalalignment='bottom',
+                            transform=ax.transAxes
+                           )
         self.matrix_fig = plt.gcf()
         plt.show()
     def plot_input(self):
@@ -710,9 +725,7 @@ class Unfolder:
         
 
     def plot_unfolded(self):
-        #title_list = [ r"$p_T$ 200-290 GeV",  r"$p_T$ 290-400 GeV",  r"$p_T$ 400-480 GeV",  r"$p_T$ 480-$\infty$ GeV"]
-        title_list = [ r"$p_T$ 200-290 GeV",  r"$p_T$ 290-400 GeV",  r"$p_T$ 400-480 GeV", "a", "b", "c", "d"]#,  r"$p_T$ 480-$\infty$ GeV"]
-        npt = 6
+        npt = self.nptbinsGen
         """Plot the unfolded result compared to the truth for each pT bin."""
         plt.stairs(self.o_np, label = "unfolded")
         plt.stairs(self.M_np.sum(axis = 1) + self.miss_values, label = "matrix projection +miss")
@@ -725,7 +738,7 @@ class Unfolder:
         plt.show()
         
         plt.figure(figsize = (19, 15))
-        for i in range(0, npt):
+        for i in range(npt):
             plt.subplot(3,2, i+1)
             if self.reweighted_pythia is not None:
                 print("Plot of unfolding reweigted pythia")
@@ -757,35 +770,9 @@ class Unfolder:
             # plt.errorbar(mgen_center_mod, self.output_pt_binned[i] / self.mgen_width / np.sum(self.output_pt_binned[i]), 
             #              self.stat_pt_binned[i] / self.mgen_width / np.sum(self.output_pt_binned[i]), ls= "", color = 'k')
             plt.xlabel("GEN Mass (GeV)")
-            plt.legend(title = title_list[i])
+            plt.legend(title=r"$p_T$ {}-{} GeV".format(self.ptgen_edge[i], self.ptgen_edge[i+1]))
             plt.xlim(0,250)
         plt.show()
-        #plt.figure(figsize = (19, 15))
-        # for i in range(0, 4):
-        #     plt.subplot(2,2, i+1)
-        #     if self.reweighted_pythia is not None:
-        #         print("Plot of unfolding reweigted pythia")
-        #         unfold_label = "Unf. reweigted Pythia"
-        #         relative_error = np.abs((self.output_pt_binned[i] / self.mgen_width / np.sum(self.output_pt_binned[i]) - self.herwig_gen[i,:].values()/
-        #                self.mgen_width / self.herwig_gen[i,:].values().sum())/(self.htrue_np[i*self.nmbinsGen  :(i+1)*self.nmbinsGen] /
-        #                self.mgen_width / np.sum(self.htrue_np[i*self.nmbinsGen:(i+1)*self.nmbinsGen])))
-        #     else:
-        #         unfold_label = "Unfolded DATA"
-            
-            
-        #     # Modify the last bin edge if desired
-        #     mgen_edge_mod = self.mgen_edge.copy()
-        #     mgen_edge_mod[-1] = 300
-        #     plt.stairs(relative_error,
-        #                mgen_edge_mod,  color='k')
-            
-        #     plt.legend(title = title_list[i])
-        #     plt.xlabel("GEN Mass (GeV)")
-        #     plt.ylim(0,0.2)
-        #     plt.ylabel("Relative Uncertainty ")
-
-        #     plt.xlim(0,250)
-        # plt.show()
 
     def get_results(self, return_stat=False):
         """
@@ -865,7 +852,7 @@ class Unfolder:
                 plt.stairs(self.total_sys[i*self.nmbinsGen  :(i+1)*self.nmbinsGen]/np.abs(self.output_pt_binned[i]), self.mgen_edge , label = "Total" )
                 #plt.legend(loc="upper left", bbox_to_anchor=(1, 1))
                 plt.xlim(0,250)
-                plt.ylim(0.00001,0.5)
+                plt.ylim(0.,1.0)
                 #plt.yscale('log')
                 plt.show()
         else:
@@ -957,13 +944,13 @@ class Unfolder_mpt:
 
     def _prepare_response_matrix(self):
         """Project the 4D response matrix to a 2D numpy array and prepare related quantities."""
-        proj = self.resp_matrix_4d.project('ptgen', 'mpt_gen', 'ptreco', 'mpt_reco')
+        proj = self.resp_matrix_4d.project('ptgen', 'mgen', 'ptreco', 'mreco')
         self.M_np = proj.values(flow=False)
         self.M_np = self.M_np.reshape(self.M_np.shape[0]*self.M_np.shape[1],
                                         self.M_np.shape[2]*self.M_np.shape[3])
 
         # Underflow bins in pT gen (and discarding under/overflow in reco)
-        h_np_underflow = self.resp_matrix_4d.project('ptgen', 'mpt_gen', 'ptreco', 'mpt_reco') \
+        h_np_underflow = self.resp_matrix_4d.project('ptgen', 'mgen', 'ptreco', 'mreco') \
                            .values(flow=True)[0, :, 1:-1, 1:-1].sum(axis=0)
         h_np_underflow = h_np_underflow.reshape(h_np_underflow.shape[0]*h_np_underflow.shape[1])
         self.underflow_frac = np.nan_to_num(h_np_underflow / self.M_np.sum(axis=0))
@@ -999,7 +986,7 @@ class Unfolder_mpt:
                 self.h_np = self.reweighted_pythia
                 self.h_np_error = proj.variances().sum(axis = (0,1)).reshape(self.nmbinsDet*self.nptbinsDet)**0.5
             else:
-                reco_proj = self.data_2d.project('ptreco', 'mpt_reco')
+                reco_proj = self.data_2d.project('ptreco', 'mreco')
                 self.h_np = reco_proj.values(flow=False)
                 self.h_np_error = self.h_np**0.5
                 self.h_np = self.h_np.reshape(self.h_np.shape[0]*self.h_np.shape[1])
@@ -1014,8 +1001,8 @@ class Unfolder_mpt:
 
         # Miss and fake corrections
         if self.fakes != None:
-            self.miss_values = self.misses.project('ptgen', 'mpt_gen').values().reshape(self.M_np.shape[0])
-            self.fake_values = self.fakes.project('ptreco', 'mpt_reco').values().reshape(self.M_np.shape[1])
+            self.miss_values = self.misses.project('ptgen', 'mgen').values().reshape(self.M_np.shape[0])
+            self.fake_values = self.fakes.project('ptreco', 'mreco').values().reshape(self.M_np.shape[1])
     
             self.miss_frac = self.miss_values/ ( self.M_np.sum(axis = 1))
         
@@ -1137,7 +1124,7 @@ class Unfolder_mpt:
 
         print("Unfolder object created")
 
-    def plot_response_matrix(self, probability_matrix  = True):
+    def plot_response_matrix_other(self, probability_matrix  = True):
         """Plot the response matrix with overlayed bin boundaries."""
         # Prepare lines for visual separation of pT bins
         self.create_root_objects()
@@ -1196,16 +1183,16 @@ class Unfolder_mpt:
         ax.set_yticklabels(x_labels[:-1])
         ax.tick_params(axis='both', which='both', length=0)
         if self.groomed:
-            hep.cms.label("Preliminary", rlabel = rf"Groomed, Cond. = {condition_number:.2f} ", fontsize = 20)
+            hep.cms.label("Prelim.", rlabel = r"Groomed, Cond. = {condition_number:.3e} ", fontsize = 20)
         else:
-            hep.cms.label("Preliminary", rlabel = rf"Ungroomed, Cond. = {condition_number:.2f} ", fontsize = 20)
+            hep.cms.label("Prelim.", rlabel = r"Ungroomed, Cond. = {condition_number:.3e} ", fontsize = 20)
         ax.set_xlabel(r"GEN p$_{T}$ (GeV)")
         ax.set_ylabel(r"RECO $p_T$ (GeV)")
 
         self.matrix_fig = plt.gcf()
         plt.show()
 
-    def perform_unfold(self, regularisation = None):
+    def perform_unfold_old(self, regularisation = None):
 
         if regularisation!= None:
             self.regularisation = regularisation
@@ -1319,7 +1306,7 @@ class Unfolder_mpt:
         self.total_sys_pt_binned = []
 
         
-        for i in range(0, 4):
+        for i in range(0, self.nptbinsGen):
             self.output_pt_binned.append(self.o_np[i*self.nmbinsGen:(i+1)*self.nmbinsGen])
             self.stat_pt_binned.append(self.stat[i*self.nmbinsGen:(i+1)*self.nmbinsGen])
             self.stat_mat_pt_binned.append(self.stat_mat[i*self.nmbinsGen:(i+1)*self.nmbinsGen])
@@ -1423,7 +1410,7 @@ class Unfolder_mpt:
         return ax
         
 
-    def plot_unfolded(self):
+    def plot_unfolded_old(self):
         title_list = [ r"$p_T$ 200-290 GeV",  r"$p_T$ 290-400 GeV",  r"$p_T$ 400-480 GeV",  r"$p_T$ 480-$\infty$ GeV", "a", "b", "c", "d"]
         """Plot the unfolded result compared to the truth for each pT bin."""
         plt.stairs(self.o_np, label = "unfolded")
@@ -1440,8 +1427,8 @@ class Unfolder_mpt:
         plt.show()
         
         plt.figure(figsize = (19, 15))
-        for i in range(0, 4):
-            plt.subplot(2,2, i+1)
+        for i in range(0, self.nptbinsGen):
+            plt.subplot(2,3, i+1)
             if self.reweighted_pythia is not None:
                 print("Plot of unfolding reweigted pythia")
                 unfold_label = "Unf. reweigted Pythia"
@@ -1559,7 +1546,7 @@ class Unfolder_mpt:
                           )
                 plt.show()
 
-    def plot_systematic_frac(self, sys_list = None):
+    def plot_systematic_frac_old(self, sys_list = None):
         
         total_sys_jes = np.zeros(self.o_np.shape)
         for sys in self.delta_sys_dic.keys():
@@ -2051,7 +2038,7 @@ def unfold_using_matrix(data_2d, resp_matrix_4d, fakes, misses,
         plt.ylim(0,0.2)
         plt.show()
 
-    for i in range(0,4):
+    for i in range(0,self.nptbinsGen):
         if plot:
             plt.stairs( o_np[i*nmbinsGen:(i+1)*nmbinsGen]/mgen_width/o_np[i*nmbinsGen:(i+1)*nmbinsGen].sum(), mgen_edge, label = "Unfolded DATA", color = 'k')
             # plt.stairs( o_np[i*nmbinsGen:(i+1)*nmbinsGen]/mgen_width, mgen_edge, label = "Unfolded DATA", color = 'k')
