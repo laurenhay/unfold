@@ -146,7 +146,7 @@ class Unfolder:
             
 
         # Prepare the data histogram based on whether this is a closure test
-        if self.closure:
+        if self.closure == True:
             self.h_np = self.M_np.sum(axis=0)
             self.h_np_error = self.h_np**0.5
             
@@ -594,7 +594,7 @@ class Unfolder:
 
         x_labels = np.array([str(int(x)) for x in self.ptgen_edge])
         if probability_matrix:
-            ax = draw_colz_histogram(self.u.GetProbabilityMatrix("Prob"), use_log_scale=False)
+            ax = draw_colz_histogram(self.u.GetProbabilityMatrix("Prob"), use_log_scale=False, vmin=0, vmax=0.7)
         else:
             ax = draw_colz_histogram(self.M, use_log_scale=True)
 
@@ -628,7 +628,6 @@ class Unfolder:
                             transform=ax.transAxes
                            )
         self.matrix_fig = plt.gcf()
-        plt.show()
     def plot_input(self):
         "plot the input vs the projection of response matrix"
         for i in range(4):
@@ -977,7 +976,7 @@ class Unfolder_mpt:
             
 
         # Prepare the data histogram based on whether this is a closure test
-        if self.closure:
+        if self.closure == True:
             self.h_np = self.M_np.sum(axis=0)
             self.h_np_error = self.h_np**0.5
             
@@ -1661,7 +1660,7 @@ def unfold_using_matrix(data_2d, resp_matrix_4d, fakes, misses,
 
     
     
-    if closure:
+    if closure == True:
         # h_np = M_np.sum(axis = 0)
         # h_np_error = M_np_error.sum(axis = 0)
         h_np = M_np.sum(axis = 0)
