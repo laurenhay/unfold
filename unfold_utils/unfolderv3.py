@@ -556,7 +556,7 @@ class Unfolder:
         
         
     
-    def plot_response_matrix(self, probability_matrix  = True, year = None):
+    def plot_response_matrix(self, probability_matrix  = True, year = None, cms_str = "Private Work"):
         """Plot the response matrix with overlayed bin boundaries."""
         # Prepare lines for visual separation of pT bins
         self.create_root_objects()
@@ -581,9 +581,9 @@ class Unfolder:
         lines_x = []
         lines_y = []
         for pt in self.ptgen_edge[1:-1]:
-            lines_x.append(self.bins.genDist.GetGlobalBinNumber(1, pt)-0.5)
+            lines_x.append(self.bins.genDist.GetGlobalBinNumber(self.mgen_edge[0]+0.001, pt)-0.5)
         for pt in self.ptreco_edge[1:-1]:
-            lines_y.append(self.bins.detDist.GetGlobalBinNumber(1, pt)-0.5)
+            lines_y.append(self.bins.detDist.GetGlobalBinNumber(self.mgen_edge[0]+0.001, pt)-0.5)
 
         label_lines_x = []
         label_lines_y = []
@@ -609,24 +609,30 @@ class Unfolder:
         ax.plot([0.5, self.M.GetNbinsX()+0.5],
                 [0.5, self.M.GetNbinsY()+0.5],
                 color='red', linestyle='--', linewidth=1)
+        ax.set_xlabel(r"GEN p$_{T}$ (GeV)")
+        ax.set_ylabel(r"RECO $p_T$ (GeV)")
         ax.set_xticks(label_lines_x)
         ax.set_xticklabels(x_labels[:-1])
         ax.set_yticks(label_lines_y)
         ax.set_yticklabels(x_labels[:-1])
         ax.tick_params(axis='both', which='both', length=0)
+        hep.cms.label(cms_str, lumi=138, com=13, data = True, loc=0, ax=ax, fontsize=18);
         if self.groomed:
-            hep.cms.label("Preliminary", rlabel = rf"Groomed, Cond. = {condition_number:.3e} ", fontsize = 16)
-        else:
-            hep.cms.label("Preliminary", rlabel = rf"Ungroomed, Cond. = {condition_number:.3e} ", fontsize = 16)
-        ax.set_xlabel(r"GEN p$_{T}$ (GeV)")
-        ax.set_ylabel(r"RECO $p_T$ (GeV)")
-        if year!=None:
-            ax.text(0.45, 1., year,
+            ax.text(-0.1, -0.1, rf"Groomed, Cond. = {condition_number:.3e} ",
                             fontsize=16,
                             horizontalalignment='left',
                             verticalalignment='bottom',
                             transform=ax.transAxes
                            )
+
+        else:
+            ax.text(-0.1, -0.1, rf"Ungroomed, Cond. = {condition_number:.3e} ",
+                            fontsize=16,
+                            horizontalalignment='left',
+                            verticalalignment='bottom',
+                            transform=ax.transAxes
+                           )
+
         self.matrix_fig = plt.gcf()
     def plot_input(self):
         "plot the input vs the projection of response matrix"
@@ -714,7 +720,6 @@ class Unfolder:
         ax.set_yticks(label_lines_x)
         ax.set_yticklabels(x_labels[:-1])
         ax.tick_params(axis='both', which='both', length=0)
-        #hep.cms.label("Preliminary" , fontsize = 20, data = True)
 
         cbar = plt.colorbar(img, ticks=bounds, boundaries=bounds, fraction=0.046, pad=0.04)
         cbar.set_label("Correlation")
@@ -1148,9 +1153,9 @@ class Unfolder_mpt:
         lines_x = []
         lines_y = []
         for pt in self.ptgen_edge[1:-1]:
-            lines_x.append(self.bins.genDist.GetGlobalBinNumber(0.01, pt)-0.5)
+            lines_x.append(self.bins.genDist.GetGlobalBinNumber(self.mgen_edge[0]+0.001, pt)-0.5)
         for pt in self.ptreco_edge[1:-1]:
-            lines_y.append(self.bins.detDist.GetGlobalBinNumber(0.01, pt)-0.5)
+            lines_y.append(self.bins.detDist.GetGlobalBinNumber(self.mgen_edge[0]+0.001, pt)-0.5)
 
         label_lines_x = []
         label_lines_y = []
@@ -1182,9 +1187,9 @@ class Unfolder_mpt:
         ax.set_yticklabels(x_labels[:-1])
         ax.tick_params(axis='both', which='both', length=0)
         if self.groomed:
-            hep.cms.label("Prelim.", rlabel = r"Groomed, Cond. = {condition_number:.3e} ", fontsize = 20)
+            hep.cms.label("Private Work", rlabel = r"Groomed, Cond. = {condition_number:.3e} ", fontsize = 20)
         else:
-            hep.cms.label("Prelim.", rlabel = r"Ungroomed, Cond. = {condition_number:.3e} ", fontsize = 20)
+            hep.cms.label("Private Work", rlabel = r"Ungroomed, Cond. = {condition_number:.3e} ", fontsize = 20)
         ax.set_xlabel(r"GEN p$_{T}$ (GeV)")
         ax.set_ylabel(r"RECO $p_T$ (GeV)")
 
@@ -1400,7 +1405,7 @@ class Unfolder_mpt:
         ax.set_yticks(label_lines_x)
         ax.set_yticklabels(x_labels[:-1])
         ax.tick_params(axis='both', which='both', length=0)
-        #hep.cms.label("Preliminary" , fontsize = 20, data = True)
+        hep.cms.label("Private Work" , fontsize = 20, data = True)
 
         cbar = plt.colorbar(img, ticks=bounds, boundaries=bounds, fraction=0.046, pad=0.04)
         cbar.set_label("Correlation")
@@ -1817,7 +1822,7 @@ def unfold_using_matrix(data_2d, resp_matrix_4d, fakes, misses,
         ax.set_yticks(label_lines_y)
         ax.set_yticklabels(x_labels[:-1])
         ax.tick_params(axis='both', which='both', length=0)
-        hep.cms.label("Preliminary")
+        hep.cms.label("Private Work")
         ax.set_xlabel(r"GEN p$_{T}$ (GeV)")
         ax.set_ylabel(r"RECO $p_T$ (GeV)")
 

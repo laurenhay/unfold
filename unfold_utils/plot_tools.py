@@ -8,7 +8,336 @@ import mplhep as hep
 hep.style.use('CMS')
 import numpy as np
 import matplotlib.pyplot as plt
+#### begin lauren's plotting tools
+from matplotlib.lines import Line2D
+print(list(Line2D.markers.keys()))
+markers = ['.', ',', 'o', 'v', 's', 'p', '*', 'h', '+', 'x', 'D', 'd', '|', '_', 'P', 'X', 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 'None', 'none', ' ', '']
+def plotStackedOutput(htrue, o_pt_binned, tot_err, stat_errs, groomed=False, norm=True, os_path='', channel='', IOV='', closure = False, xlim = None, mask=False, log = True): #, oMat, oSys, oTotal):                                                 
+    #### plotting options                                                                                                                                     
+    if channel == "trijet":
+        tot_error_opts = {
+            'facecolor': 'pink',
+            'linewidth': 0
+        }
+        stat_error_opts = {
+            'facecolor': 'palevioletred',
+            'linewidth': 0
+        }
+    else:
+        tot_error_opts = {
+                'facecolor': 'powderblue',
+                'linewidth': 0
+            }
+        stat_error_opts = {
+                'facecolor': 'cadetblue',
+                'linewidth': 0
+            }
+    data_err_opts = {
+            'linestyle': 'none',
+            'marker': '.',
+            'markersize': 5.,
+            'color': 'k',
+            'elinewidth': 1,
+        }
+    #### u is total unfolding object, htrue is truth hist from coffea                                                                                         
+    ptedges = [bin[0] for bin in htrue.project("ptgen").axes[0]] + [htrue.project("ptgen").axes[0][-1][1]]
+    print(ptedges)
+    medges = [bin[0] for bin in htrue.project('mgen').axes[0]]+ [htrue.project('mgen').axes[0][-1][1]]
+    widths = htrue.project("mgen").axes[0].widths
+    xlim = medges[-1]
+    #### set up figure   
+    if IOV == "2018": lumi = 59.83
+    elif IOV == "2017": lumi = 41.48
+    elif IOV == "2016": lumi = 16.8
+    elif IOV == "2016APV": lumi = 19.5
+    else: lumi = 138
+    fig, ax= plt.subplots()
+    ax.set_ylabel(r'$\frac{1}{d\sigma/dp_T}\frac{d^2\sigma}{dmdp_T} [GeV^{-1}]$', loc = 'top')
+    if closure==True:
+        hep.cms.label("Private Work", year=IOV, com=13, lumi=lumi, data = False, loc=0, ax=ax, fontsize=18);
+        closure_str = "closure"
+        label = "MG+Pythia8"
+    elif closure=='herwig':
+        hep.cms.label("Private Work", year=IOV, data = False, lumi=lumi, loc=0, ax=ax, fontsize=18);
+        closure_str = "closureherwig"
+        label = "MG+HERWIG"
+    else: 
+        hep.cms.label("Private Work", year = IOV, com = 13, lumi = lumi, data = True, loc=0, ax=ax);
+        closure_str = ""
+        label = "MG+Pythia8"
+    print(label)
+    if log:
+        ax.set_yscale('log')
+    # ax.set_xscale('log')
+    ax.set_ylim(10**(-6),10**(len(ptedges)))
+    ax.set_xlim(20., 400.)
+    # else:
+    #     ax.set_xlim(20., xlim)
+    histVal_list = []
+    oHistVal_list = []
+    oHistErr_list = []
+    totErr_list =[]
+    for ipt in range(len(ptedges)-1): 
+        oHistVals = o_pt_binned[ipt]
+        oHistErr = stat_errs[ipt]
+        totErr = tot_err[ipt]
+        hist = htrue[{'ptgen':ipt, 'syst':"nominal"}].project("mgen")
+        if norm:
+            print("Check that sum of values ", np.sum(hist.values())," is same as integrate ", hist.integrate("mgen").value)
+            hist = hist*1.0/hist.integrate("mgen").value
+            oVals_sum = np.nansum(oHistVals)
+            oHistVals = oHistVals*1.0/oVals_sum
+            oHistErr = oHistErr/oVals_sum
+            totErr = totErr*1.0/oVals_sum
+            # print("oVals after norm ", oVals, " by value ", np.nansum(oVals)) 
+        scale = 10**ipt
+        print(totErr)
+        histVals = hist.values()*scale
+        histErrs = np.sqrt(hist.variances())*scale
+        oHistVals =  oHistVals*scale
+        totErr = totErr*scale
+        oHistErr = oHistErr*scale
+        if isinstance(mask, np.ndarray) or isinstance(mask, list):
+            nan_list = mask[ipt].astype(bool)
+            print(nan_list)
+            oHistVals = np.where(nan_list, oHistVals, np.nan)
+            histVals = np.where(nan_list, histVals, np.nan)
+            oHistErr = np.where(nan_list, oHistErr, np.nan)
+            totErr = np.where(nan_list, totErr, np.nan)
+        histVal_list.append(histVals)
+        oHistVal_list.append(oHistVals)
+        oHistErr_list.append(oHistErr)
+        totErr_list.append(totErr)
+        if ipt == 0:
+            #### plotting error values for first bin w/ label
+            ax.stairs(values=(oHistVals+totErr)/widths, edges = medges, baseline= (oHistVals-totErr)/widths,fill=True,
+                **tot_error_opts,label="Tot. Unc."
+            )
+            ax.stairs(values=(oHistVals+oHistErr)/widths, edges = medges, baseline= (oHistVals-oHistErr)/widths,fill=True,
+                **stat_error_opts,label="Stat. Unc."
+            )
 
+        else: 
+            ##### plotting error values for rest of bins w/o label
+            ax.stairs(values=(oHistVals+totErr)/widths, edges = medges, baseline= (oHistVals-totErr)/widths,fill=True,
+                **tot_error_opts
+            )
+            ax.stairs(values=(oHistVals+oHistErr)/widths, edges = medges, baseline= (oHistVals-oHistErr)/widths,
+                fill=True,
+                **stat_error_opts,
+            )
+    #### do mc and data plots in separate loop to prevent covering by unc. bars
+    for ipt in range(len(ptedges)-1):
+        if ipt == 0:
+            ax.stairs(values=(oHistVal_list[ipt]+oHistErr_list[ipt])/widths, edges =medges, baseline= (oHistVal_list[ipt]-oHistErr_list[ipt])/widths,                fill=True,
+                **stat_error_opts,
+            )
+            # hep.histplot(histVal_list[ipt]/width_list[ipt], edges_list[ipt], stack=False, histtype='step',
+            #      ax=ax, linestyle ='--', color = 'Red', linewidth=1, label=label)
+            ax.stairs(histVal_list[ipt]/widths, medges, color = "Red", linestyle = "--", linewidth=2, baseline=None, label=label)
+        else:
+            ax.stairs(values=(oHistVal_list[ipt]+oHistErr_list[ipt])/widths, edges = medges, baseline= (oHistVal_list[ipt]+oHistErr_list[ipt])/widths,
+                fill=True,
+                **stat_error_opts,
+            )
+            # hep.histplot(histVal_list[ipt]/width_list[ipt], edges_list[ipt], stack=False, histtype='step',
+            #      ax=ax, linestyle ='--', color = 'Red', linewidth=1)
+            ax.stairs(histVal_list[ipt]/widths, medges, color = "Red", linestyle = "--", linewidth=2, baseline=None)
+        hep.histplot(oHistVal_list[ipt]/widths, medges, stack=False, histtype='errorbar', yerr = (np.zeros_like(oHistErr_list[ipt])),
+                 ax=ax, marker=markers[ipt+2], color = 'Black',markersize=5.,
+                 label=str(int(ptedges[ipt]))+"-" +str(int(ptedges[ipt+1])) + r" GeV x $10^{}$".format(ipt))
+    leg = ax.legend(loc=9, fontsize=14, labelspacing=0.25, ncol=2)
+    # ax.yaxis.grid(True, which='minor')
+    leg.set_visible(True)
+    if groomed:
+        ax.set_xlabel(r'$m_{SD} \, [GeV]$' )
+    else: 
+        ax.set_xlabel(r'$m \, [GeV]$' )
+    if groomed:
+        plt.savefig(f'plots/{channel}/{closure_str}stackedResult_groomed{IOV}.pdf', bbox_inches='tight')
+    else:
+        plt.savefig(f'plots/{channel}/{closure_str}stackedResult_ungroomed{IOV}.pdf', bbox_inches='tight')
+def plotUnfoldOutputHist(htrue, o_pt_binned, sys_errs, stat_errs, groomed=False, norm=True, os_path='', channel='', IOV='', trim=None, closure = False, mask=False, yoffset=None, ylim=None, log=True): #, oMat, oSys, oTotal):                                                 
+    #### plotting options  
+    if channel == "trijet":
+        tot_error_opts = {
+            'label': 'Tot. Unc.',
+            'facecolor': 'pink',
+            'linewidth': 0
+        }
+        stat_error_opts = {
+                        'label': 'Stat. Unc.',
+            'facecolor': 'palevioletred',
+            'linewidth': 0
+        }
+    else:
+        tot_error_opts = {
+                        'label': 'Tot. Unc.',
+                'facecolor': 'powderblue',
+                'linewidth': 0
+            }
+        stat_error_opts = {
+                        'label': 'Stat. Unc.',
+                'facecolor': 'cadetblue',
+                'linewidth': 0
+            }
+    data_err_opts = {
+            'linestyle': 'none',
+            'marker': '.',
+            'markersize': 10.,
+            'color': 'k',
+            'elinewidth': 1,
+        }
+    #### u is total unfolding object, htrue is truth hist from coffea                                                                                         
+    ptedges = [bin[0] for bin in htrue.project("ptgen").axes[0]] + [htrue.project("ptgen").axes[0][-1][1]]
+    medges = [bin[0] for bin in htrue.project('mgen').axes[0]]+ [htrue.project('mgen').axes[0][-1][1]]
+    widths = htrue.project("mgen").axes[0].widths
+    if trim!=None:
+        medges[-1] = trim
+        widths[-1] = medges[-1] - medges[-2]
+        xlim = medges[-1]
+    else:
+        xlim = 400.
+    for ipt in range(len(ptedges)-1):
+        sysErr =sys_errs[ipt]
+        oHistVals = o_pt_binned[ipt]
+        oHistErr = stat_errs[ipt]
+        totErr = (sysErr**2+oHistErr**2)**0.5
+        #### oHistVal == Data; hist.values == MC
+        #oHistVals = np.array([o.GetBinContent(im+(ipt*(len(medges)-1))) for im in range(len(medges)-1)])
+        hist = htrue[{'ptgen':ipt}].project("mgen")
+        #### set up figure                                                                                                                                    
+        fig, (ax, rax) = plt.subplots(
+                nrows=2,
+                ncols=1,
+                figsize=(7,7),
+                gridspec_kw={"height_ratios": (3, 1)},
+                sharex=True)
+        ax.set_ylabel(r'$\frac{1}{d\sigma/dp_T}\frac{d^2\sigma}{dmdp_T} [GeV^{-1}]$', loc = 'top')
+        ax.text(0.60, 0.62, str(int(ptedges[ipt]))+r"$<p_{T}<$" +str(int(ptedges[ipt+1])) + " GeV",verticalalignment='bottom', horizontalalignment='left',
+                transform=ax.transAxes, color='red', fontsize=14)
+        rax.set_ylim(0.0, 2)
+        if log:
+            ax.set_yscale('log')
+            if yoffset != None:
+                ax.set_ylim(1e-6,(np.max(oHistVals)+yoffset))
+        else:
+            print("Max hist value ", np.max(oHistVals/widths))
+            if not groomed:
+                ax.set_ylim(0.,np.max(oHistVals/widths)+(np.max(oHistVals/widths)/5))
+            else:
+                ax.set_ylim(0.,np.max(oHistVals[1:]/widths[1:])+(np.max(oHistVals[1:]/widths[1:])/10))
+            if yoffset != None:
+                ax.set_ylim(0.,(np.max(oHistVals)+yoffset))
+        # elif ylim!=None:
+        #     ax.set_ylim(ylim[0], ylim[1])
+        # else:
+        #     ax.set_ylim(0,0.01)
+        if IOV == "2018": lumi = 59.83
+        elif IOV == "2017": lumi = 41.48
+        elif IOV == "2016": lumi = 16.8
+        elif IOV == "2016APV": lumi = 19.5
+        else: lumi = 138
+        hep.cms.label("Private Work", year=IOV, lumi=lumi, com=13, data = True, loc=0, ax=ax, fontsize=18);
+        if norm:
+            print("Check that sum of values ", np.nansum(hist.values())," is same as integrate ", hist.integrate("mgen").value)
+            hist = hist*1.0/hist.integrate("mgen").value
+            oVals_sum = np.nansum(oHistVals)
+            oHistVals = oHistVals*1.0/oVals_sum
+            oHistErr = oHistErr/oVals_sum
+            totErr = totErr/oVals_sum
+            print("oVals after norm ", oHistVals, " by value ", np.nansum(oHistVals))
+        histVals = hist.values()
+        if isinstance(mask, np.ndarray) or isinstance(mask, list):
+            nan_list = mask[ipt].astype(bool)
+            print(nan_list)
+            oHistVals = np.where(nan_list, oHistVals, np.nan)
+            histVals = np.where(nan_list, histVals, np.nan)
+            oHistErr = np.where(nan_list, oHistErr, np.nan)
+            totErr = np.where(nan_list, totErr, np.nan)
+        ratio = np.divide(oHistVals,hist.values(),
+                      out=np.empty(np.array(hist.project("mgen").values()).shape).fill(1),
+                      where= oHistVals!=0,)
+        #### divide MC+errors by MC for ratio plots error bar around 1
+        print("MC vals ", hist.values(), " MC errs ", hist.variances())
+        ratio_staterr_up = np.divide(oHistVals+oHistErr,hist.values(),
+                      out=np.empty(np.array(oHistVals.shape)).fill(np.nan),
+                      where=hist.values()!= 0,)
+        ratio_staterr_down = np.divide(oHistVals-oHistErr,hist.values(),
+                      out=np.empty(np.array(oHistVals.shape)).fill(np.nan),
+                      where=hist.values()!= 0,)
+        ratio_toterr_up = np.divide(oHistVals+totErr,hist.values(),
+                      out=np.empty(np.array(oHistVals.shape)).fill(np.nan),
+                      where=hist.values()!= 0,)
+        ratio_toterr_down = np.divide(oHistVals-totErr,hist.values(),
+                      out=np.empty(np.array(oHistVals.shape)).fill(np.nan),
+                      where=hist.values()!= 0,)
+        #### divide data errors by MC for ratio data point errors
+        ratio_err = np.abs(np.divide(oHistErr,hist.values(),
+                      out=np.empty(np.array(oHistVals.shape)).fill(np.nan),
+                      where=hist.values()!= 0,))
+        rax.stairs(values=ratio_toterr_up, edges = medges, baseline= ratio_toterr_down,                                                                 
+                fill=True,                                                                                                                                  
+                **tot_error_opts,                                                                                                                          
+            )   
+        rax.stairs(values=ratio_staterr_up, edges = medges, baseline= ratio_staterr_down,
+                fill=True,
+                **stat_error_opts,
+            )
+        ax.stairs(values=(oHistVals+totErr)/widths, edges = medges, baseline= (oHistVals-totErr)/widths,                             
+                fill=True,                                                                                                                                  
+                **tot_error_opts,                         
+            )
+        ax.stairs(values=(oHistVals+oHistErr)/widths, edges = medges, baseline= (oHistVals-oHistErr)/widths,
+                fill=True,
+                **stat_error_opts,
+            )
+        if closure == True:
+            # label = "Unfolded "+channel+" HERWIG"
+            # truth_label = "HERWIG truth"
+            label = "Unfolded MG+Pythia8"
+            closure_str="closure"
+            truth_label = "MG+Pythia8 truth"
+            rax.set_ylabel(r'Ratio', loc = 'top')
+        elif closure == "herwig":
+            label = "Unfolded MG+Herwig"
+            closure_str="herwig"
+            truth_label = "MG+Herwig truth"
+            rax.set_ylabel(r'Ratio', loc = 'top')
+        else: 
+            closure_str=""
+            label = "Unfolded Data"
+            truth_label = "MG+Pythia8 Truth"
+            rax.set_ylabel(r'Data/MC', loc = 'top')
+        hep.histplot(oHistVals, medges, stack=False, histtype='errorbar', yerr = np.zeros_like(oHistErr),
+                 ax=ax, marker =["."], color = 'Black', linewidth=1, binwnorm=True,
+                 label=label)
+        hep.histplot(histVals, medges, stack=False, histtype='step',
+                 ax=ax, linestyle ='--', color = 'Black', linewidth=1, binwnorm=True,
+                     label=truth_label)
+        hep.histplot(np.ones_like(ratio), medges, histtype='step', ax=rax, linestyle ="--", color = 'black', linewidth=1)
+        hep.histplot(ratio, medges, histtype='errorbar',ax=rax,marker=['.'], color = 'black', linewidth=1, yerr = np.zeros_like(ratio_err))#, yerr = ratio_err)
+        leg = ax.legend(loc='upper right', fontsize=14, labelspacing=0.25)
+        leg.set_visible(True)
+        rax.set_xlim(20.,xlim)
+        ax.set_xlim(20.,xlim)
+        if trim:
+            newticks = ax.get_xticks().tolist()
+            newticks[-1] = r'$\infty$'
+            print("new ticks ", newticks)
+            rax.set_xticks(rax.get_xticks().tolist(),
+               labels=newticks)
+        if groomed:
+            ax.set_xlabel(None)
+            rax.set_xlabel(r'$m_{SD} [GeV]$' )
+        else: 
+            ax.set_xlabel(None )
+            rax.set_xlabel(r'$m [GeV]$' )
+        if groomed:
+            plt.savefig(f'../plots/unfolding/{channel}/{closure_str}binnedResult_groomed{IOV}_{ipt}.pdf', bbox_inches='tight')
+        else:
+            plt.savefig(f'../plots/unfolding/{channel}/{closure_str}binnedResult_ungroomed{IOV}_{ipt}.pdf', bbox_inches='tight')
+##### Aritra's plotting tools start here
 def plot_data_mc_ratio_with_asymmetric_errors(
     bin_edges, data_counts, data_errors, mc_histograms, mc_stat_errors, mc_syst_errors_up = None, mc_syst_errors_down = None,
     labels = None, colors = None, stack=False, divide_by_binwidth=False, yscale = 'linear', rp_xlabel = None, normalize_to_data = False, rlabel = r"2018 ( L = 59.83 $fb^{-1}$)"
@@ -136,7 +465,7 @@ def plot_data_mc_ratio_with_asymmetric_errors(
         handles0.append(handles[i])
         labels0.append(labels[i])
     ax1.legend(handles0, labels0, fontsize = 15)
-    hep.cms.label(ax = ax1, data = True, label = "Preliminary", rlabel = rlabel)
+    hep.cms.label(ax = ax1, data = True, label = "Private Work", rlabel = rlabel)
     # Show and save plot
     plt.tight_layout()
     
@@ -268,9 +597,9 @@ class AsymmetricErrorPlot:
         #ax1.text(0.50, 0.50, custom_text, ha='center', va='center', transform=ax1.transAxes, fontsize=22)
         closure = False
         if closure:
-            hep.cms.label("Preliminary", ax = ax1, data = 0)
+            hep.cms.label("Private Work", ax = ax1, data = 0)
         else:
-            hep.cms.label("Preliminary", ax = ax1, data = 1)
+            hep.cms.label("Private Work", ax = ax1, data = 1)
         # if lumi_text!=None:
         #     hep.cms.lumitext(str(lumi_text), ax = ax1)
         # else:
