@@ -4,11 +4,26 @@ import mplhep as hep
 #hep.style.use("CMS")
 from matplotlib import colors, ticker
 import pickle as pkl
-from unfold_utils.integrate_and_rebin import *
+from utils.integrate_and_rebin import *
 import itertools
+import ipywidgets as widgets
+from IPython.display import display
 
+def create_true_false_dropdown(description, default=False):
+    """Creates and returns a True/False dropdown."""
+    return widgets.Dropdown(
+        options=[('True', True), ('False', False)],
+        value=default,
+        description=description
+    )
 
-
+def show_groomed_closure_dropdowns(default_groomed=False, default_closure=True, default_herwig = False):
+    """Creates, displays, and returns groomed & closure dropdowns."""
+    groomed_dropdown = create_true_false_dropdown("Groomed:", default_groomed)
+    closure_dropdown = create_true_false_dropdown("Closure:", default_closure)
+    closure_herwig = create_true_false_dropdown("Closure Herwig:", default_herwig)
+    display(groomed_dropdown, closure_dropdown, closure_herwig)
+    return groomed_dropdown, closure_dropdown, closure_herwig
 # ------------------------------------------------------------------
 # helpers
 def _subset_positions(old, new, atol=1e-9):
@@ -159,9 +174,7 @@ def reorder_to_expected(H, mass_edges_reco, pt_edges, mass_edges_gen):
         len(mass_edges_gen) - 1,   # gen_mass
         len(pt_edges)       - 1,   # gen_pt
     ]
-    for perm in itertools.permutations(range(4)):
-        if [H.shape[p] for p in perm] == expected:
-            return np.transpose(H, perm), perm
+    return np.transpose(H, (3, 2, 1, 0)), [3,2,1,0]  # TEMPORARY FIX
     raise ValueError(
         f"Could not match H.shape={H.shape} to expected {expected}. "
         "Check that you're passing the correct edges and that flow bins are excluded."
@@ -234,4 +247,5 @@ def mosaic_no_padding(H, mass_edges_reco, mass_edges_gen,
             row_blocks.append(block)
             blocks[(i, j)] = block
         rows.append(np.hstack(row_blocks))
+    print("mosaic made")
     return np.vstack(rows), blocks
